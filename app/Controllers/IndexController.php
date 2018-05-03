@@ -1,16 +1,17 @@
 <?php
 namespace Controllers;
-use Base\Controller;
+defined('ROOT_DIR') OR exit('No direct script access allowed');
+use App\Controller;
 
 class IndexController extends Controller {
 
    public function indexAction() {
 
       if ($_SESSION['loggedIn']){
-         $this->redirect('/user');
+         $this->request->redirect('/user');
       }
       else{
-         $this->redirect('/sign/in');
+         $this->request->redirect('/sign/in');
       }
       
       $this->view->render('index');

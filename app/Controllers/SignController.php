@@ -1,8 +1,9 @@
 <?php
 namespace Controllers;
+defined('ROOT_DIR') OR exit('No direct script access allowed');
 
-use Base\{Controller, Crypt, Email, Dispatcher};
-use Models\Users;
+use App\{Controller, Crypt, Email, ErrorList};
+use Models\{User, UserMapper};
 
 class SignController extends Controller {
 
@@ -11,58 +12,47 @@ class SignController extends Controller {
    **/
    public function inAction() {
       if (!empty($_SESSION['loggedIn']))
-         $this->redirect('/user/');
+         $this->request->redirect('/user/');
 
-      $data = [];
-      $errors = [];
-
-      if (!empty($_SESSION['registration_success'])) {
-         $data['registration_success'] = true;
-         unset($_SESSION['registration_success']);
-      }
+      $mapper = new UserMapper();
 
       if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-         $data = array_map('trim', $_POST);
+         $data = $this->request->getSanitizingPost();
 
-         // Validation
-         if (empty($data['email'])) {
-            $errors['email'] = 'Enter your email';
-         }
-         elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            $errors['email'] = 'Wrong email format';
-         }
+         $errorList = new ErrorList();
 
-         if (empty($data['password'])) {
-            $errors['password'] = 'Enter password';
-         }
-         elseif (strlen($data['password']) < 8 || strlen($data['password']) > 20){
-            $errors['password'] = 'Must be 8-20 characters long';
-         }
-
-         // Get user data
-         if (empty($errors)){
-            $users = new Users();
+         if ($mapper->validateLogin($data, $errorList) === true) {
             $crypt = new Crypt();
 
-            $user = $users->getByEmail($data['email']);
+            $user = $mapper->getByEmail($data['email']);
 
-            if (!$user || !$crypt->verify($data['password'], $user['password'])) {
+            $errors = [];
+            if ($user === null || !$crypt->verify($data['password'], $user->getPassword())) {
                $errors['password'] = "Incorrect email or password ";
             }
-            elseif ($user['is_active'] === 0) {
+            elseif ($user->getIsActive() === 0) {
                $errors['email'] = "Account is not active. Please confirm the registration by e-mail.";
             }
             else {
                $_SESSION['loggedIn'] = true;
                $_SESSION['user'] = [
-                  'first_name' => $user['first_name'],
-                  'last_name' => $user['last_name'],
-                  'email' => $user['email'],
-                  'date' => $user['date'],
+                  'first_name' => $user->getFirstName(),
+                  'last_name' => $user->getLastName(),
+                  'email' => $user->getEmail(),
+                  'date' => $user->getDate(),
                ];
 
-               $this->redirect('user');
+               $this->request->redirect('user');
             }
+         }
+         else{
+            $errors = $errorList->get();
+         }
+      }
+      else{
+         if (!empty($_SESSION['registration_success'])) {
+            $registration_success = true;
+            unset($_SESSION['registration_success']);
          }
       }
 
@@ -70,8 +60,9 @@ class SignController extends Controller {
          'page' => [
             'html_title' => 'Login'
          ],
-         'data' => $data,
-         'errors' => $errors
+         'data' => $data ?? [],
+         'registration_success' => $registration_success ?? false,
+         'errors' => $errors ?? false
       ]);
    }
 
@@ -83,80 +74,48 @@ class SignController extends Controller {
    public function outAction() {
       unset($_SESSION['loggedIn']);
       unset($_SESSION['user']);
-
       session_destroy();
-      $this->redirect('/sign/in');
+      $this->request->redirect('/sign/in');
    }
+
+
 
    /**
    ** Registration action
    **/
    public function upAction() {
-      // $users->deleteByIds([1,2,3,4,5,6,7,8,9]);
       if (!empty($_SESSION['loggedIn']))
-         $this->redirect('/user/');
-
-      $data = [];
-      $errors = [];
+         $this->request->redirect('/user');
 
       if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-         $users = new Users();
 
-         $data = array_map('trim', $_POST);
+         $data = $this->request->getSanitizingPost();
 
-         // Validation
-         if (empty($data['email'])) {
-            $errors['email'] = 'Enter your email';
-         }
-         elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            $errors['email'] = 'Wrong email format';
-         }
+         $mapper = new UserMapper();
+         $errorList = new ErrorList();
 
-         if (empty($data['password'])) {
-            $errors['password'] = 'Enter password';
-         }
-         elseif (strlen($data['password']) < 8 || strlen($data['password']) > 20){
-            $errors['password'] = 'Must be 8-20 characters long';
-         }
-         else{
-            if (empty($data['password_confirm'])) {
-               $errors['password_confirm'] = 'Repeat password';
-            }
-            elseif($data['password_confirm'] !== $data['password']){
-               $errors['password'] = 'Passwords do not match';
-            }
-         }
-
-         // Check email exists
-         if (empty($errors)){
-            $userExists = $users->getByEmail($data['email']);
-            if ($userExists){
-               $errors['email'] = "This email is already registered";
-            }
-         }
-
-         // Insert the data and send confirmation email
-         if (empty($errors)){
-            
+         if ($mapper->validateRegistration($data, $errorList) === true) {
             $crypt = new Crypt();
             $email = new Email();
 
-            $insertData = [
-               'first_name' => $data['first_name'] ?? '',
-               'last_name' => $data['last_name'] ?? '',
-               'email' => $data['email'],
-               'password' => $crypt->hash($data['password']),
-               'code' => $crypt->generateCode(),
-               'is_active' => 0,
-               'date' => date('Y-m-d H:i:s')
-            ];
+            $user = new User();
+            $user->setFirstName($data['first_name'] ?? '');
+            $user->setLastName($data['last_name'] ?? '');
+            $user->setEmail($data['email']);
+            $user->setPassword($crypt->hash($data['password']));
+            $user->setCode($crypt->generateCode());
+            $user->setIsActive(0);
+            $user->setDate(date('Y-m-d H:i:s'));
 
-            if ($users->insert($insertData)){
-               $message = $msg = $this->view->fetch('email.registration.confirmation', $insertData);
+            if ($mapper->save($user)){
+               $message = $msg = $this->view->fetch('email.registration.confirmation', ['first_name' => $user->getFirstName(), 'code' => $user->getCode()]);
                $email->send($data['email'], 'Registration confirmation', $message, SITE_EMAIL);
 
-               $this->redirect('sign/info/');
+               $this->request->redirect('sign/info/');
             }
+         }
+         else{
+            $errors = $errorList->get();
          }
       }
 
@@ -164,8 +123,8 @@ class SignController extends Controller {
          'page' => [
             'html_title' => 'Registration'
          ],
-         'data' => $data,
-         'errors' => $errors
+         'data' => $data ?? [],
+         'errors' => $errors ?? false
       ]);
    }
 
@@ -175,23 +134,25 @@ class SignController extends Controller {
    ** Registration confirmation action
    **/
    public function confirmationAction(){
-      $params = Dispatcher::getParams();
+      $params = $this->request->getParams();
 
       if (empty($params['code'])) 
-         $this->redirect('/');
+         $this->request->redirect('/');
 
-      $users = new Users();
-      $user = $users->getByCode($params['code']);
+      $mapper = new UserMapper();
+      $user = $mapper->getByCode($params['code']);
 
       if (!$user)
-         $this->redirect('/');
+         $this->request->redirect('/');
       
-      // Activate user
-      if ($users->update(['is_active' => 1, 'code' => ''], ' id = '.$user['id'])) {
+      $user->setCode('');
+      $user->setIsActive(1);
+
+      if ($mapper->save($user)) {
          $_SESSION['registration_success'] = true;
       }
 
-      $this->redirect('/sign/in/');
+      $this->request->redirect('/sign/in/');
    }
 
 

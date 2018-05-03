@@ -1,4 +1,4 @@
-<?php defined('BASEDIR') OR exit('No direct script access allowed');?>
+<?php defined('ROOT_DIR') OR exit('No direct script access allowed');?>
 <?php include_once 'shared_header.php';?>
 
 <div class="container">
@@ -30,7 +30,7 @@
             </div>
          </form>
 
-         <?php if(!empty($data['registration_success'])):?>
+         <?php if (!empty($registration_success)):?>
             <br>
             <p>Your registration successfully completed, now you can sing in.</p>
          <?php endif;?>

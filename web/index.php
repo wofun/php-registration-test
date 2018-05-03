@@ -5,10 +5,9 @@ ini_set('display_errors', '1');
 session_start();
 
 define('DS', DIRECTORY_SEPARATOR);
-define('BASEDIR', dirname(__FILE__));
+define('ROOT_DIR', dirname(dirname(__FILE__)));
 
-include_once BASEDIR.DS.'config.php';
-
+include_once ROOT_DIR . DS . 'web' . DS . 'config.php';
 
 function get_base_url(): string{
    $protocol = (!empty($_SERVER['HTTPS']) && (strtolower($_SERVER['HTTPS']) == 'on' || $_SERVER['HTTPS'] == '1')) ?
@@ -24,7 +23,7 @@ function get_base_url(): string{
 
 ### Autoloader ###
 spl_autoload_register(function($class){
-   $classFile = BASEDIR . DS . 'app' . DS . str_replace(['Base\\','\\'], ['', DS], $class) . '.php';
+   $classFile = ROOT_DIR . DS . 'app' . DS . str_replace(['App\\','\\'], ['', DS], $class) . '.php';
    // var_dump($class);
    // var_dump($classFile);
 
@@ -37,6 +36,7 @@ spl_autoload_register(function($class){
 });
 
 
-use Base\Dispatcher;
+use App\Dispatcher;
+use App\Request;
 
-Dispatcher::dispatch();
+(new Dispatcher)->dispatch(Request::getInstance());

@@ -1,4 +1,4 @@
-<?php defined('BASEDIR') OR exit('No direct script access allowed');?>
+<?php defined('ROOT_DIR') OR exit('No direct script access allowed');?>
 <?php include_once 'shared_header.php';?>
 
 <div class="container">

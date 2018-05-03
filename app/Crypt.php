@@ -1,32 +1,30 @@
 <?php
-namespace Base;
-
-include_once BASEDIR.'/libs/Bcrypt.php';
+namespace App;
+defined('ROOT_DIR') OR exit('No direct script access allowed');
 
 class Crypt {
-   private $bcrypt;
+   const BCRYPT_COST = 12;
 
-   public function __construct() {
-      $this->bcrypt = new \Bcrypt();
-   }
-
-   public function generateCode() : String {
+   /** 
+   ** Generate randome code 
+   **/
+   public function generateCode() : string {
       return bin2hex(random_bytes(10));
    }
 
    /**
-   ** Create Bcrypt hash
+   ** Create password Bcrypt hash
    **/
-   public function hash(String $str) : String {
-      return $this->bcrypt->hash($str);
+   public function hash(string $str) : string {
+      return password_hash($str, PASSWORD_BCRYPT, ['cost' => self::BCRYPT_COST]);
    }
 
 
    /**
-   ** Verify Bcrypt pass
+   ** Verify pass
    **/
-   public function verify(String $pass, String $pass_hash): bool{
-      return $this->bcrypt->verify($pass, $pass_hash);
+   public function verify(string $pass, string $pass_hash): bool{
+      return password_verify($pass, $pass_hash);
    }
 
 }

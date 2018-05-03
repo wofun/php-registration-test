@@ -1,36 +1,14 @@
 <?php
-namespace Base;
+namespace App;
+defined('ROOT_DIR') OR exit('No direct script access allowed');
 
 class Dispatcher {
-   static private $controller = 'IndexController';
-   static private $action = 'indexAction';
-   static private $params = [];
 
-   static public function dispatch() {
-      $uri = trim($_SERVER['REQUEST_URI'], '/');
-      
-      if (!empty($uri)) {
-         $uriArr = explode('/', $uri);
+   public function dispatch(Request $request) {
+      $controller = $request->getController();
+      $action = $request->getAction();
 
-         self::$controller = ucfirst(strtolower($uriArr[0])) . 'Controller';
-
-         if (!empty($uriArr[1]))
-            self::$action = str_replace(['-'],'_', strtolower($uriArr[1])) . 'Action';
-         
-         if (!empty($uriArr[2])) {
-            self::$params = [];
-            $params = array_slice($uriArr, 2);
-
-            if (count($params > 1)){
-               for ($i=0; $i < count($params); $i=$i+2){
-                  if (isset($params[$i+1]))
-                     self::$params[$params[$i]] = $params[$i+1];
-               }
-            }
-         }
-      }
-
-      $controllerFile = self::getControllerFilePath(self::$controller);
+      $controllerFile = $this->getControllerFilePath($controller);
 
       try{
          if (!is_readable($controllerFile)) 
@@ -38,17 +16,17 @@ class Dispatcher {
          
          include_once $controllerFile;
 
-         $className = 'Controllers\\'.self::$controller;
+         $className = 'Controllers\\'.$controller;
 
          if (!class_exists($className))
             throw new \ErrorException("Controller class not found", 404);
 
          $oController = new $className();
 
-         if (!method_exists($oController, self::$action))
+         if (!method_exists($oController, $action))
             throw new \ErrorException("Controller action method not found", 404);
 
-         return (new $className)->{self::$action}();
+         return (new $className)->{$action}();
       }
       catch(\ErrorException $e){
          // echo "Dispatcher error";
@@ -57,17 +35,8 @@ class Dispatcher {
       }
    }
 
-   static private function getControllerFilePath($controller) {
-      return BASEDIR . DS .'app' . DS . 'Controllers' . DS . $controller . '.php';
+   private function getControllerFilePath($controller) {
+      return ROOT_DIR . DS .'app' . DS . 'Controllers' . DS . $controller . '.php';
    }
 
-   static public function getController() {
-      return self::$controller;
-   }
-   static public function getAction() {
-      return self::$action;
-   }
-   static public function getParams() {
-      return self::$params;
-   }
 }

@@ -1,11 +1,13 @@
 <?php
-namespace Base;
+namespace App;
+defined('ROOT_DIR') OR exit('No direct script access allowed');
 
 class Controller{
+   protected $request;
    protected $view;
-   protected $db;
 
    public function __construct(){
+      $this->request = Request::getInstance();
       $this->view = new View();
    }
 
@@ -17,8 +19,5 @@ class Controller{
       ]);
    }
 
-   public function redirect(string $location) {
-      header('Location: '.get_base_url() . '/' . trim($location,'/'));
-      exit;
-   }
+   
 }

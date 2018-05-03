@@ -1,4 +1,4 @@
-<?php defined('BASEDIR') OR exit('No direct script access allowed');?>
+<?php defined('ROOT_DIR') OR exit('No direct script access allowed');?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
